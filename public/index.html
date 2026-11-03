@@ -64,7 +64,7 @@ input {
 .timer { font-size: 2.8rem; font-weight: 900; color: #60a5fa; }
 .timer.low { color: #ef4444; }
 
-/* تصميم البطاقات والأفتار */
+/* تصميم البطاقات والأفتار مع الصور */
 .card {
   --f: 16px;
   font-size: var(--f);
@@ -156,6 +156,8 @@ input {
 .pl { background: var(--pn); border-radius: 14px; padding: 12px; border: 2px solid transparent; }
 .pl.lead { border-color: #22c55e; background: #14291f; }
 .error { color: #ef4444; margin-top: 10px; font-weight: bold; }
+.mini { font-size: 0.52em; margin: 3px; }
+.mini .rb { font-size: 0.9em; }
 </style>
 </head>
 <body>
@@ -298,35 +300,10 @@ function startGame() {
   socket.emit('start-game', currentRoom);
 }
 
-// استقبال بدء اللعبة وتفعيل العداد التنازلي
+// استقبال بدء اللعبة وتفعيل شاشة المزاد
 socket.on('game-started', (data) => {
   renderAuctionScreen(data);
-  startCountdown(30);
 });
-
-// دالة العداد التنازلي للوقت
-function startCountdown(seconds) {
-  let timeLeft = seconds;
-  const tmElement = $('#tm');
-  
-  if (timerInterval) clearInterval(timerInterval);
-  
-  timerInterval = setInterval(() => {
-    timeLeft--;
-    if (tmElement) {
-      tmElement.textContent = timeLeft;
-      if (timeLeft <= 5) {
-        tmElement.classList.add('low');
-      } else {
-        tmElement.classList.remove('low');
-      }
-    }
-    
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-    }
-  }, 1000);
-}
 
 // استقبال تحديثات المزاد اللحظية (+1)
 socket.on('update-auction', (data) => {
