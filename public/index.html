@@ -244,12 +244,28 @@ function createRoom() {
   if (!myName) return $('#err').textContent = 'الرجاء إدخال اسمك أولاً!';
   socket.emit('create-room', myName);
 }
-
-function joinRoom() {
+function joinRoom(event) {
+  if (event) event.preventDefault(); // منع إعادة تحميل الصفحة إن وجد فورم
+  
+  console.log("تم النقر على زر الانضمام!");
   myName = $('#pName').value.trim();
   const roomCode = $('#rCode').value.trim().toUpperCase();
-  if (!myName) return $('#err').textContent = 'الرجاء إدخال اسمك أولاً!';
-  if (!roomCode) return $('#err').textContent = 'الرجاء إدخال رمز الغرفة!';
+  
+  if (!myName) {
+    $('#err').textContent = 'الرجاء إدخال اسمك أولاً!';
+    return;
+  }
+  if (!roomCode) {
+    $('#err').textContent = 'الرجاء إدخال رمز الغرفة!';
+    return;
+  }
+  
+  $('#err').textContent = ''; // مسح أي خطأ سابق
+  
+  // حفظ رمز الغرفة محلياً فوراً
+  currentRoom = roomCode;
+  
+  // إرسال طلب الانضمام للسيرفر
   socket.emit('join-room', { roomCode, playerName: myName });
 }
 
