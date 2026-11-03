@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>مزاد اللاعبين - أونلاين</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+:root {
+  color-scheme: dark;
+  box-sizing: border-box;
+  --bg: #0b0e14;
+  --pn: #161b26;
+  --tx: #eef1f7;
+  --mu: #8b93a7;
+  --ac: #2563eb;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--tx);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+}
+#app {
+  max-width: 1020px;
+  margin: auto;
+  padding: 16px;
+  text-align: center;
+}
+h1 { margin: 12px 0; font-weight: 900; }
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 18px;
+  background: var(--ac);
+  color: #fff;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+button:disabled { background: #232a3b; color: #555; cursor: not-allowed; }
+input {
+  font: inherit;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #333b50;
+  background: #0e1118;
+  color: var(--tx);
+  width: 220px;
+  text-align: center;
+  margin: 6px;
+}
+.panel {
+  background: var(--pn);
+  border-radius: 16px;
+  padding: 20px;
+  margin: 14px 0;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+.row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.timer { font-size: 2.8rem; font-weight: 900; color: #60a5fa; }
+.timer.low { color: #ef4444; }
+
+/* تصميم البطاقات والأفتار */
+.card {
+  --f: 16px;
+  font-size: var(--f);
+  width: 12.8em;
+  aspect-ratio: 2/3;
+  border-radius: 1em;
+  padding: 0.65em;
+  position: relative;
+  display: inline-block;
+  margin: 6px;
+  vertical-align: top;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+}
+.card .in {
+  background: #fff;
+  color: #111;
+  border-radius: 0.5em;
+  height: 100%;
+  padding-top: 2.6em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  position: relative;
+  overflow: hidden;
+}
+.card .rb {
+  position: absolute;
+  top: 0.2em;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 104%;
+  height: 2.6em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.85em;
+  color: #fff;
+  clip-path: polygon(0 25%, 18% 25%, 26% 0, 74% 0, 82% 25%, 100% 25%, 88% 50%, 80% 100%, 20% 100%, 12% 50%);
+  padding: 0 14%;
+  white-space: nowrap;
+  z-index: 2;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.av {
+  width: 5.4em;
+  height: 5.4em;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid rgba(255,255,255,0.9);
+  background: #1e293b;
+}
+.pts { font-size: 1.9em; font-weight: 900; }
+.tag { font-size: 0.75em; color: #555; font-weight: 700; }
+
+/* فريمات التصنيفات */
+.mystery { background: #2b2e33; box-shadow: inset 0 0 0 2px #444; }
+.mystery .in { background: #3a3d43; color: #777; }
+.mystery .rb { background: linear-gradient(#5a5e66, #3a3d43); }
+.mystery .pts { color: #aaa; font-size: 2.2em; }
+
+.common { background: linear-gradient(135deg, #d6dae0, #aeb4bd); }
+.common .rb { background: linear-gradient(#8f96a3, #5d6470); }
+
+.rare {
+  background: linear-gradient(135deg, #1c3fa8, #59b8ff 50%, #1c3fa8);
+  box-shadow: 0 0 16px rgba(0, 150, 255, 0.4);
+}
+.rare .rb { background: linear-gradient(#2563eb, #1d4ed8); }
+
+.epic {
+  background: linear-gradient(135deg, #ff2d87, #ff8a2b, #ff2d87);
+  box-shadow: 0 0 20px rgba(255, 45, 135, 0.6);
+}
+.epic .rb { background: linear-gradient(#ff5aa0, #b4155b); }
+
+.legend {
+  background: linear-gradient(135deg, #a97b10, #ffe27a 50%, #a97b10);
+  box-shadow: 0 0 26px rgba(255, 210, 74, 0.8);
+}
+.legend .rb { background: linear-gradient(#e6b936, #8a6200); }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 14px; }
+.pl { background: var(--pn); border-radius: 14px; padding: 12px; border: 2px solid transparent; }
+.pl.lead { border-color: #22c55e; background: #14291f; }
+.error { color: #ef4444; margin-top: 10px; font-weight: bold; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const socket = io();
+const $ = s => document.querySelector(s);
+const app = $('#app');
+let myName = '';
+let currentRoom = '';
+
+function getPoints(r) {
+  if (r <= 85) return 5 + (r - 80);
+  if (r <= 90) return 15 + (r - 86);
+  if (r <= 95) return 24 + (r - 91);
+  return 33 + (r - 96);
+}
+
+function getTier(r) {
+  if (r >= 96) return 'legend';
+  if (r >= 91) return 'epic';
+  if (r >= 86) return 'rare';
+  return 'common';
+}
+
+const tierNames = { legend: 'أسطوري', epic: 'خارق', rare: 'نادر', common: 'عادي' };
+
+function getInitials(name) {
+  const parts = name.trim().split(' ');
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.substring(0, 2).toUpperCase();
+}
+
+function getFileName(name) {
+  return name.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\u0600-\u06FF]/g, '');
+}
+
+function card(c, reveal, cls = '') {
+  const t = reveal ? getTier(c.r) : 'mystery';
+  const pts = getPoints(c.r);
+  const initials = getInitials(c.n);
+  const imagePath = `images/${getFileName(c.n)}.png`;
+  
+  const avatarHTML = `
+    <img src="${imagePath}" alt="${c.n}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+    <div style="display:none; width:100%; height:100%; align-items:center; justify-content:center; background:linear-gradient(135deg, #1e293b, #0f172a); color:#38bdf8; font-weight:900; font-size:1.3em;">${initials}</div>
+  `;
+    
+  return `
+    <div class="card ${t} ${cls}">
+      <div class="rb">${c.n}</div>
+      <div class="in">
+        <div class="av">
+          ${reveal ? avatarHTML : `<div style="color:#94a3b8; font-weight:900;">${initials}</div>`}
+        </div>
+        <div class="pts">${reveal ? pts : '؟'}</div>
+        <div class="tag">${reveal ? tierNames[t] : '؟ ؟ ؟'}</div>
+      </div>
+    </div>
+  `;
+}
+
+function showHome() {
+  app.innerHTML = `
+    <h1>🏆 مزاد اللاعبين أونلاين</h1>
+    <div class="panel">
+      <p>أدخل اسمك أولاً:</p>
+      <input type="text" id="pName" placeholder="اسمك المستعار" value="${myName}"><br>
+      <div style="margin-top: 15px;" class="row">
+        <button onclick="createRoom()">إنشاء غرفة جديدة</button>
+      </div>
+      <hr style="border-color:#333b50; margin:20px 0;">
+      <p>أو انضم لغرفة صديق:</p>
+      <input type="text" id="rCode" placeholder="رمز الغرفة (مثل AB123)"><br>
+      <div style="margin-top: 10px;">
+        <button style="background:#16a34a" onclick="joinRoom()">انضمام للغرفة</button>
+      </div>
+      <div id="err" class="error"></div>
+    </div>
+  `;
+}
+
+function createRoom() {
+  myName = $('#pName').value.trim();
+  if (!myName) return $('#err').textContent = 'الرجاء إدخال اسمك أولاً!';
+  socket.emit('create-room', myName);
+}
+
+function joinRoom() {
+  myName = $('#pName').value.trim();
+  const roomCode = $('#rCode').value.trim().toUpperCase();
+  if (!myName) return $('#err').textContent = 'الرجاء إدخال اسمك أولاً!';
+  if (!roomCode) return $('#err').textContent = 'الرجاء إدخال رمز الغرفة!';
+  socket.emit('join-room', { roomCode, playerName: myName });
+}
+
+socket.on('room-created', (roomCode) => {
+  currentRoom = roomCode;
+  showLobby([ { name: myName } ], true);
+});
+
+socket.on('update-lobby', (players) => {
+  showLobby(players, false);
+});
+
+socket.on('error-msg', (msg) => {
+  $('#err').textContent = msg;
+});
+
+function showLobby(players, isHost) {
+  app.innerHTML = `
+    <h1>🏆 غرفة الانتظار</h1>
+    <div class="panel">
+      <h3>رمز الغرفة: <span style="color:#60a5fa; font-size:1.8rem;">${currentRoom}</span></h3>
+      <p style="color:var(--mu)">شارك هذا الرمز مع أصدقائك (الحد الأقصى 4 لاعبين)</p>
+      <div class="grid" style="margin: 20px 0;">
+        ${players.map(p => `<div class="pl"><b>👤 ${p.name}</b></div>`).join('')}
+      </div>
+      ${isHost ? `<button style="background:#16a34a; font-size:1.2rem;" onclick="startGame()">بدء اللعبة الآن</button>` : `<p style="color:#60a5fa">بانتظار أن يبدأ المضيف اللعبة...</p>`}
+    </div>
+  `;
+}
+
+function startGame() {
+  socket.emit('start-game', currentRoom);
+}
+
+// استقبال بدء اللعبة عند جميع اللاعبين في الغرفة
+socket.on('game-started', (data) => {
+  renderAuctionScreen(data);
+});
+
+// استقبال تحديثات المزاد اللحظية (+1)
+socket.on('update-auction', (data) => {
+  $('#currentBid').textContent = data.bid;
+  // تحديث شكل اللاعب المتصدر
+  document.querySelectorAll('.pl').forEach((el, idx) => {
+    if (idx === data.lead) {
+      el.classList.add('lead');
+    } else {
+      el.classList.remove('lead');
+    }
+  });
+});
+
+function renderAuctionScreen(data) {
+  app.innerHTML = `
+    <h1>🏆 المزاد المباشر أونلاين</h1>
+    <div class="panel">
+      <div id="tm" class="timer">30</div>
+      ${card(data.card, false)}
+      <div style="font-size:1.4rem; margin:10px 0;">
+        السعر الحالي: <b id="currentBid">${data.bid}</b> ريال
+      </div>
+      <div class="grid">
+        ${data.players.map((p, i) => `
+          <div class="pl ${data.lead === i ? 'lead' : ''}">
+            <b>${p.name}</b>
+            <div style="margin:4px 0">💰 ${p.budget} ريال</div>
+            <div style="color:var(--mu); font-size:0.9em; margin-bottom:8px">الفريق ${p.team.length}/5</div>
+            <button onclick="sendBid(${i})">+1 ريال</button>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function sendBid(playerIndex) {
+  socket.emit('place-bid', { roomCode: currentRoom, playerIndex });
+}
+
+showHome();
+</script>
+</body>
+</html>
