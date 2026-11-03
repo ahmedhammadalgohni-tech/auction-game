@@ -756,7 +756,9 @@ const allPlayersPool = [
 
 // دالة لإرجاع لاعب عشوائي من القائمة
 function getRandomPlayer() {
-  if (allPlayersPool.length === 0) return { n: "لاعب حر", r: 85, img: "" };
+  if (typeof allPlayersPool === 'undefined' || allPlayersPool.length === 0) {
+    return { n: "لاعب حر", r: 85, img: "" };
+  }
   const randomIndex = Math.floor(Math.random() * allPlayersPool.length);
   return allPlayersPool[randomIndex];
 }
@@ -766,38 +768,58 @@ io.on('connection', (socket) => {
 
     const fn = () => Math.random().toString(36).substring(2, 7).toUpperCase();
 
+    // 🌟 1. إنشاء الغرفة (مدمجة وصحيحة)
     socket.on('create-room', (playerName) => {
         const roomCode = fn();
         rooms[roomCode] = {
-            host: socket.id,
+            host: socket.id, // حفظ الـ socket.id للمنشئ
             players: [{ id: socket.id, name: playerName, team: [], budget: 25 }],
             status: 'waiting',
-            currentBid: 5,       // السعر الابتدائي للمزاد
-            currentLead: null,   // اللاعب المتصدر بالمزاد
-            currentCard: null    // البطاقة المعروضة حالياً
+            currentBid: 5,
+            currentLead: null,
+            currentCard: null
         };
         socket.join(roomCode);
         socket.emit('room-created', roomCode);
     });
 
-    socket.on('create-room', (playerName) => {
-    const roomCode = fn();
-    rooms[roomCode] = {
-        host: socket.id, // 🌟 حفظ الـ socket.id للمنشئ
-        players: [{ id: socket.id, name: playerName, team: [], budget: 25 }],
-        status: 'waiting'
-    };
-    socket.join(roomCode);
-    socket.emit('room-created', roomCode);
-});
+    // 🌟 2. انضمام لاعب للغرفة
+    socket.on('join-room', (data) => {
+        const roomCode = (data.roomCode || data).trim().toUpperCase();
+        const playerName = data.playerName || "لاعب";
+        
+        const room = rooms[roomCode];
+        
+        if (!room) {
+            socket.emit('error-msg', 'الغرفة غير موجودة!');
+            return;
+        }
+        if (room.players.length >= 4) {
+            socket.emit('error-msg', 'الغرفة ممتلئة!');
+            return;
+        }
+        if (room.status !== 'waiting') {
+            socket.emit('error-msg', 'اللعبة قد بدأت بالفعل!');
+            return;
+        }
 
-    // 🌟 2. حدث بدء اللعبة وعرض أول بطاقة من القائمة
+        room.players.push({ id: socket.id, name: playerName, team: [], budget: 25 });
+        socket.join(roomCode);
+        
+        // إرسال اللوبي المحدث مع معرّف المضيف
+        io.to(roomCode).emit('update-lobby', {
+            players: room.players,
+            hostId: room.host
+        });
+    });
+
+    // 🌟 3. بدء اللعبة من قِبل المنشئ
     socket.on('start-game', (roomCode) => {
         const room = rooms[roomCode];
         if (!room || room.host !== socket.id) return;
 
         room.status = 'playing';
-        room.currentCard = getRandomPlayer(); // اختيار لاعب عشوائي من الـ 500
+        room.currentCard = getRandomPlayer();
         room.currentBid = 5;
         room.currentLead = null;
 
@@ -808,37 +830,8 @@ io.on('connection', (socket) => {
             lead: room.currentLead
         });
     });
-socket.on('join-room', (data) => {
-    // دعم الطريقتين (سواء تم إرسالها ككائن أو كمتغيرات مفردة)
-    const roomCode = (data.roomCode || data).trim().toUpperCase();
-    const playerName = data.playerName || "لاعب";
-    
-    const room = rooms[roomCode];
-    
-    if (!room) {
-        socket.emit('error-msg', 'الغرفة غير موجودة!');
-        return;
-    }
-    if (room.players.length >= 4) {
-        socket.emit('error-msg', 'الغرفة ممتلئة!');
-        return;
-    }
-    if (room.status !== 'waiting') {
-        socket.emit('error-msg', 'اللعبة قد بدأت بالفعل!');
-        return;
-    }
 
-    // إضافة اللاعب للغرفة
-    room.players.push({ id: socket.id, name: playerName, team: [], budget: 25 });
-    socket.join(roomCode);
-    
-    // تحديث اللوبي عند الجميع مع إرسال معرّف المضيف
-    io.to(roomCode).emit('update-lobby', {
-        players: room.players,
-        hostId: room.host
-    });
-});
-    // 🌟 3. حدث المزايدة (+1)
+    // 🌟 4. حدث المزايدة (+1) - تم تصحيحه ليعمل بسلاسة
     socket.on('place-bid', ({ roomCode, playerIndex }) => {
         const room = rooms[roomCode];
         if (!room || room.status !== 'playing') return;
@@ -846,10 +839,11 @@ socket.on('join-room', (data) => {
         room.currentBid += 1;
         room.currentLead = playerIndex;
 
-       io.to(roomCode).emit('update-lobby', {
-    players: room.players,
-    hostId: room.host
-});
+        // إرسال التحديث لمشاهد المزاد وليس للوبي
+        io.to(roomCode).emit('update-auction', {
+            bid: room.currentBid,
+            lead: room.currentLead
+        });
     });
 
     socket.on('disconnect', () => {
