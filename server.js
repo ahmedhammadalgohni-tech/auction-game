@@ -808,7 +808,36 @@ io.on('connection', (socket) => {
             lead: room.currentLead
         });
     });
+socket.on('join-room', (data) => {
+    // دعم الطريقتين (سواء تم إرسالها ككائن أو كمتغيرات مفردة)
+    const roomCode = (data.roomCode || data).trim().toUpperCase();
+    const playerName = data.playerName || "لاعب";
+    
+    const room = rooms[roomCode];
+    
+    if (!room) {
+        socket.emit('error-msg', 'الغرفة غير موجودة!');
+        return;
+    }
+    if (room.players.length >= 4) {
+        socket.emit('error-msg', 'الغرفة ممتلئة!');
+        return;
+    }
+    if (room.status !== 'waiting') {
+        socket.emit('error-msg', 'اللعبة قد بدأت بالفعل!');
+        return;
+    }
 
+    // إضافة اللاعب للغرفة
+    room.players.push({ id: socket.id, name: playerName, team: [], budget: 25 });
+    socket.join(roomCode);
+    
+    // تحديث اللوبي عند الجميع مع إرسال معرّف المضيف
+    io.to(roomCode).emit('update-lobby', {
+        players: room.players,
+        hostId: room.host
+    });
+});
     // 🌟 3. حدث المزايدة (+1)
     socket.on('place-bid', ({ roomCode, playerIndex }) => {
         const room = rooms[roomCode];
