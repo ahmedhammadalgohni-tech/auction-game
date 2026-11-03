@@ -11,7 +11,7 @@ app.use(express.static('public'));
 const rooms = {};
 
 const allPlayersPool = [
-     { n: "M. Locatelli", r: 84 },
+ { n: "M. Locatelli", r: 84 },
     { n: "N. Pépé", r: 80 },
     { n: "L. Hrádecký", r: 81 },
     { n: "N. Pope", r: 81 },
@@ -769,11 +769,11 @@ io.on('connection', (socket) => {
             host: socket.id,
             players: [{ id: socket.id, name: playerName, team: [], budget: 100 }],
             status: 'waiting',
-            currentBid: 0,       // تبدأ من 0 ريال
+            currentBid: 0,
             currentLead: null,
             currentCard: null,
             roundTimer: null,
-            totalRounds: 5,      // عدد جولات المزاد
+            totalRounds: 5,
             currentRound: 0
         };
         socket.join(roomCode);
@@ -819,11 +819,11 @@ io.on('connection', (socket) => {
         }
 
         room.currentCard = getRandomPlayer();
-        room.currentBid = 0; // السعر يبدأ من 0
+        room.currentBid = 0;
         room.currentLead = null;
 
         io.to(roomCode).emit('game-started', {
-            card: { n: room.currentCard.n }, // إرسال الاسم فقط وإخفاء التقييم أثناء المزاد
+            card: { n: room.currentCard.n },
             bid: room.currentBid,
             players: room.players,
             lead: room.currentLead,
@@ -842,7 +842,6 @@ io.on('connection', (socket) => {
                 message = `لم يزاود أحد على اللاعب ${room.currentCard.n}, تم تخطيه!`;
             }
 
-            // إرسال الكشف عن بيانات اللاعب الحقيقية لفترة قصيرة قبل الانتقال للجولة التالية
             io.to(roomCode).emit('round-result', {
                 card: room.currentCard,
                 message: message,
@@ -851,9 +850,9 @@ io.on('connection', (socket) => {
 
             setTimeout(() => {
                 startNextRound(roomCode);
-            }, 4000); // 4 ثوانٍ لعرض النتيجة قبل اللاعب التالي
+            }, 4000);
 
-        }, 20000); // 20 ثانية لكل جولة
+        }, 20000);
     }
 
     socket.on('start-game', (roomCode) => {
@@ -869,7 +868,7 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room || room.status !== 'playing') return;
 
-        // منع اللاعب من المزايدة مرتين متتاليتين
+        // التحقق الدقيق لمنع المزايدة مرتين متتاليتين من نفس الشخص
         if (room.currentLead === playerIndex) return;
 
         const bidder = room.players[playerIndex];
