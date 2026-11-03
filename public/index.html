@@ -164,7 +164,42 @@ input {
 <div id="app"></div>
 
 <script>
-let timerInterval = null;
+  let timerInterval = null;
+
+function startCountdown(seconds) {
+  let timeLeft = seconds;
+  const tmElement = document.getElementById('tm'); // أو استخدام الـ $ الخاص بك
+  
+  // مسح أي عداد قديم لضمان عدم توقفه
+  if (timerInterval) {
+    clearInterval(timerInterval);
+  }
+  
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    
+    if (tmElement) {
+      tmElement.textContent = timeLeft;
+      
+      // تغيير اللون إلى الأحمر عند وصول الوقت إلى 5 ثوانٍ أو أقل
+      if (timeLeft <= 5) {
+        tmElement.classList.add('low');
+      } else {
+        tmElement.classList.remove('low');
+      }
+    }
+    
+    // عند انتهاء الوقت تماماً
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      // هنا يمكنك استدعاء دالة انتهاء الجولة أو الوقت تلقائياً
+      if (typeof settle === 'function') {
+        settle();
+      }
+    }
+  }, 1000);
+}
+
 const socket = io();
 const $ = s => document.querySelector(s);
 const app = $('#app');
@@ -303,6 +338,7 @@ function startGame() {
 // استقبال بدء اللعبة وتفعيل شاشة المزاد
 socket.on('game-started', (data) => {
   renderAuctionScreen(data);
+  startCountdown(30);
 });
 
 // استقبال تحديثات المزاد اللحظية (+1)
