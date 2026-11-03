@@ -780,17 +780,16 @@ io.on('connection', (socket) => {
         socket.emit('room-created', roomCode);
     });
 
-    socket.on('join-room', ({ roomCode, playerName }) => {
-        const room = rooms[roomCode];
-        if (!room) return socket.emit('error-msg', 'الغرفة غير موجودة!');
-        if (room.players.length >= 4) return socket.emit('error-msg', 'الغرفة ممتلئة (الحد الأقصى 4 لاعبين)!');
-        if (room.status !== 'waiting') return socket.emit('error-msg', 'اللعبة قد بدأت بالفعل!');
-
-        room.players.push({ id: socket.id, name: playerName, team: [], budget: 25 });
-        socket.join(roomCode);
-        
-        io.to(roomCode).emit('update-lobby', room.players);
-    });
+    socket.on('create-room', (playerName) => {
+    const roomCode = fn();
+    rooms[roomCode] = {
+        host: socket.id, // 🌟 حفظ الـ socket.id للمنشئ
+        players: [{ id: socket.id, name: playerName, team: [], budget: 25 }],
+        status: 'waiting'
+    };
+    socket.join(roomCode);
+    socket.emit('room-created', roomCode);
+});
 
     // 🌟 2. حدث بدء اللعبة وعرض أول بطاقة من القائمة
     socket.on('start-game', (roomCode) => {
