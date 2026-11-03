@@ -64,7 +64,6 @@ input {
 .timer { font-size: 2.8rem; font-weight: 900; color: #60a5fa; }
 .timer.low { color: #ef4444; }
 
-/* تصميم الفريم للبطاقات */
 .card {
   --f: 16px;
   font-size: var(--f);
@@ -108,7 +107,6 @@ input {
   background: rgba(255,255,255,0.1);
 }
 
-/* فريمات التصنيفات */
 .mystery { background: linear-gradient(135deg, #334155, #1e293b); box-shadow: 0 0 15px rgba(100,100,100,0.3); }
 .common { background: linear-gradient(135deg, #475569, #334155); }
 .rare { background: linear-gradient(135deg, #1d4ed8, #2563eb); box-shadow: 0 0 15px rgba(37,99,235,0.4); }
@@ -132,19 +130,32 @@ const app = $('#app');
 let myName = '';
 let currentRoom = '';
 let timerInterval = null;
+let latestAuctionData = null; // لحفظ حالة المزاد الحالية
 
+// 1. تحديد الندرة من 70 إلى 85 للـ common
 function getTier(r) {
   if (r >= 96) return 'legend';
   if (r >= 91) return 'epic';
   if (r >= 86) return 'rare';
-  return 'common';
+  return 'common'; // من 70 إلى 85
 }
 
+// 2. منطق النقاط المعدل (بدءاً من 70 والزيادة بـ 5 عند الوصول إلى 80)
 function getPoints(r) {
-  if (r <= 85) return 5 + (r - 80);
-  if (r <= 90) return 15 + (r - 86);
-  if (r <= 95) return 24 + (r - 91);
-  return 33 + (r - 96);
+  if (r < 80) {
+    // التقييمات أقل من 80 (تبدأ من 70 وتأخذ نقطة لكل زيادة)
+    return Math.max(1, r - 69);
+  } else if (r <= 85) {
+    // من 80 إلى 85: عند الوصول لـ 80 يكتسب 5 نقاط إضافية فوق نقاط 79
+    // (79 = 10 نقاط + 5 عند الـ 80 + زيادة كل تقييم)
+    return 11 + 5 + (r - 80);
+  } else if (r <= 90) {
+    return 22 + (r - 86);
+  } else if (r <= 95) {
+    return 28 + (r - 91);
+  } else {
+    return 34 + (r - 96);
+  }
 }
 
 const tierNames = { legend: 'أسطوري', epic: 'خارق', rare: 'نادر', common: 'عادي' };
@@ -172,7 +183,6 @@ function startCountdown(seconds) {
   }, 1000);
 }
 
-// رسم البطاقة (مخفية أثناء المزاد أو مكشوفة عند النتيجة)
 function renderCard(cardData, reveal = false) {
   if (!reveal) {
     return `
@@ -273,27 +283,23 @@ function startGame() {
 }
 
 socket.on('game-started', (data) => {
-  renderAuctionScreen(data);
+  latestAuctionData = data;
+  renderAuctionScreen(latestAuctionData);
   startCountdown(20);
 });
 
 socket.on('update-auction', (data) => {
+  if (latestAuctionData) {
+    latestAuctionData.bid = data.bid;
+    latestAuctionData.lead = data.lead;
+  }
   const bidEl = $('#currentBid');
   if (bidEl) bidEl.textContent = data.bid;
   
-  // حفظ ومعرفة هل المستخدم الحالي هو من قام بآخر مزايدة لتعطيل الزر مؤقتاً
-  window.currentLeadIndex = data.lead;
-
-  document.querySelectorAll('.pl').forEach((el, idx) => {
-    if (idx === data.lead) {
-      el.classList.add('lead');
-    } else {
-      el.classList.remove('lead');
-    }
-  });
+  // تحديث حالة الأزرار لمنع المزايدة المتكررة لنفس الشخص
+  renderAuctionScreen(latestAuctionData);
 });
 
-// عند انتهاء وقت الجولة وكشف هوية اللاعب الحقيقية وتوزيع نقاطه
 socket.on('round-result', (data) => {
   if (timerInterval) clearInterval(timerInterval);
   app.innerHTML = `
@@ -301,16 +307,14 @@ socket.on('round-result', (data) => {
     <div class="panel">
       <div class="notification">${data.message}</div>
       ${renderCard(data.card, true)}
-      <p style="color:var(--mu); margin-top:15px;">جالانتقال للاعب التالي قريباً...</p>
+      <p style="color:var(--mu); margin-top:15px;">الانتقال للاعب التالي قريباً...</p>
     </div>
   `;
 });
 
-// نهاية المزاد بالكامل وجمع النقاط وتحديد الفائز
 socket.on('auction-ended', (players) => {
   if (timerInterval) clearInterval(timerInterval);
 
-  // حساب النقاط الإجمالية لكل لاعب
   const results = players.map(p => {
     const totalPoints = p.team.reduce((sum, player) => sum + getPoints(player.r), 0);
     return { ...p, totalPoints };
@@ -342,7 +346,7 @@ socket.on('auction-ended', (players) => {
 });
 
 function renderAuctionScreen(data) {
-  // معرفة ترتيب اللاعب الحالي في المصفوفة
+  if (!data) return;
   const myIndex = data.players.findIndex(p => p.name === myName);
 
   app.innerHTML = `
@@ -354,14 +358,17 @@ function renderAuctionScreen(data) {
         السعر الحالي: <b id="currentBid">${data.bid}</b> ريال
       </div>
       <div class="grid">
-        ${data.players.map((p, i) => `
-          <div class="pl ${data.lead === i ? 'lead' : ''}">
-            <b>${p.name}</b>
-            <div style="margin:4px 0">💰 الميزانية: ${p.budget} ريال</div>
-            <div style="color:var(--mu); font-size:0.9em; margin-bottom:8px">الفريق: ${p.team.length} لاعبين</div>
-            <button onclick="sendBid(${i})" ${data.lead === i ? 'disabled title="أنت صاحب أعلى مزايدة حالياً"' : ''}>+1 ريال</button>
-          </div>
-        `).join('')}
+        ${data.players.map((p, i) => {
+          const isLead = data.lead === i;
+          return `
+            <div class="pl ${isLead ? 'lead' : ''}">
+              <b>${p.name}</b>
+              <div style="margin:4px 0">💰 الميزانية: ${p.budget} ريال</div>
+              <div style="color:var(--mu); font-size:0.9em; margin-bottom:8px">الفريق: ${p.team.length} لاعبين</div>
+              <button onclick="sendBid(${i})" ${isLead ? 'disabled title="أنت صاحب أعلى مزايدة"' : ''}>+1 ريال</button>
+            </div>
+          `;
+        }).join('')}
       </div>
     </div>
   `;
