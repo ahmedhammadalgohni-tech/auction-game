@@ -817,10 +817,10 @@ io.on('connection', (socket) => {
         room.currentBid += 1;
         room.currentLead = playerIndex;
 
-        io.to(roomCode).emit('update-auction', {
-            bid: room.currentBid,
-            lead: room.currentLead
-        });
+       io.to(roomCode).emit('update-lobby', {
+    players: room.players,
+    hostId: room.host
+});
     });
 
     socket.on('disconnect', () => {
