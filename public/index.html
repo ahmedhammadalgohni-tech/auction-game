@@ -162,6 +162,7 @@ input {
 <div id="app"></div>
 
 <script>
+let timerInterval = null;
 const socket = io();
 const $ = s => document.querySelector(s);
 const app = $('#app');
@@ -190,16 +191,12 @@ function getInitials(name) {
   return name.substring(0, 2).toUpperCase();
 }
 
-function getFileName(name) {
-  return name.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\u0600-\u06FF]/g, '');
-}
-
 function card(c, reveal, cls = '') {
   const t = reveal ? getTier(c.r) : 'mystery';
   const pts = getPoints(c.r);
   const initials = getInitials(c.n);
   
-  // 🌟 الحل هنا: استخدام رابط Pinterest المباشر الموجود في البيانات
+  // استخدام رابط Pinterest المباشر القادم من السيرفر
   const imagePath = c.img || ''; 
   
   const avatarHTML = `
@@ -234,7 +231,7 @@ function showHome() {
       <p>أو انضم لغرفة صديق:</p>
       <input type="text" id="rCode" placeholder="رمز الغرفة (مثل AB123)"><br>
       <div style="margin-top: 10px;">
-        <button style="background:#16a34a" onclick="joinRoom()">انضمام للغرفة</button>
+        <button style="background:#16a34a" onclick="joinRoom(event)">انضمام للغرفة</button>
       </div>
       <div id="err" class="error"></div>
     </div>
@@ -246,10 +243,10 @@ function createRoom() {
   if (!myName) return $('#err').textContent = 'الرجاء إدخال اسمك أولاً!';
   socket.emit('create-room', myName);
 }
+
 function joinRoom(event) {
-  if (event) event.preventDefault(); // منع إعادة تحميل الصفحة إن وجد فورم
+  if (event) event.preventDefault();
   
-  console.log("تم النقر على زر الانضمام!");
   myName = $('#pName').value.trim();
   const roomCode = $('#rCode').value.trim().toUpperCase();
   
@@ -262,12 +259,8 @@ function joinRoom(event) {
     return;
   }
   
-  $('#err').textContent = ''; // مسح أي خطأ سابق
-  
-  // حفظ رمز الغرفة محلياً فوراً
+  $('#err').textContent = '';
   currentRoom = roomCode;
-  
-  // إرسال طلب الانضمام للسيرفر
   socket.emit('join-room', { roomCode, playerName: myName });
 }
 
@@ -275,15 +268,13 @@ socket.on('room-created', (roomCode) => {
   currentRoom = roomCode;
   showLobby([ { name: myName } ], true);
 });
+
 socket.on('update-lobby', (data) => {
   const playersList = data.players || data;
   const hostSocketId = data.hostId;
-  
   const isMeHost = hostSocketId ? (hostSocketId === socket.id) : (playersList[0].id === socket.id);
-  
   showLobby(playersList, isMeHost);
 });
- 
 
 socket.on('error-msg', (msg) => {
   $('#err').textContent = msg;
@@ -307,15 +298,39 @@ function startGame() {
   socket.emit('start-game', currentRoom);
 }
 
-// استقبال بدء اللعبة عند جميع اللاعبين في الغرفة
+// استقبال بدء اللعبة وتفعيل العداد التنازلي
 socket.on('game-started', (data) => {
   renderAuctionScreen(data);
+  startCountdown(30);
 });
+
+// دالة العداد التنازلي للوقت
+function startCountdown(seconds) {
+  let timeLeft = seconds;
+  const tmElement = $('#tm');
+  
+  if (timerInterval) clearInterval(timerInterval);
+  
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    if (tmElement) {
+      tmElement.textContent = timeLeft;
+      if (timeLeft <= 5) {
+        tmElement.classList.add('low');
+      } else {
+        tmElement.classList.remove('low');
+      }
+    }
+    
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+    }
+  }, 1000);
+}
 
 // استقبال تحديثات المزاد اللحظية (+1)
 socket.on('update-auction', (data) => {
   $('#currentBid').textContent = data.bid;
-  // تحديث شكل اللاعب المتصدر
   document.querySelectorAll('.pl').forEach((el, idx) => {
     if (idx === data.lead) {
       el.classList.add('lead');
