@@ -64,7 +64,7 @@ input {
 .timer { font-size: 2.8rem; font-weight: 900; color: #60a5fa; }
 .timer.low { color: #ef4444; }
 
-/* تصميم بطاقة اللاعب النصية بالكامل بدون صور */
+/* تصميم الفريم للبطاقات */
 .card {
   --f: 16px;
   font-size: var(--f);
@@ -109,6 +109,7 @@ input {
 }
 
 /* فريمات التصنيفات */
+.mystery { background: linear-gradient(135deg, #334155, #1e293b); box-shadow: 0 0 15px rgba(100,100,100,0.3); }
 .common { background: linear-gradient(135deg, #475569, #334155); }
 .rare { background: linear-gradient(135deg, #1d4ed8, #2563eb); box-shadow: 0 0 15px rgba(37,99,235,0.4); }
 .epic { background: linear-gradient(135deg, #be185d, #db2777); box-shadow: 0 0 18px rgba(219,39,119,0.5); }
@@ -118,6 +119,7 @@ input {
 .pl { background: var(--pn); border-radius: 14px; padding: 12px; border: 2px solid transparent; }
 .pl.lead { border-color: #22c55e; background: #14291f; }
 .error { color: #ef4444; margin-top: 10px; font-weight: bold; }
+.notification { color: #fbbf24; font-weight: bold; margin: 10px 0; font-size: 1.2rem; }
 </style>
 </head>
 <body>
@@ -136,6 +138,13 @@ function getTier(r) {
   if (r >= 91) return 'epic';
   if (r >= 86) return 'rare';
   return 'common';
+}
+
+function getPoints(r) {
+  if (r <= 85) return 5 + (r - 80);
+  if (r <= 90) return 15 + (r - 86);
+  if (r <= 95) return 24 + (r - 91);
+  return 33 + (r - 96);
 }
 
 const tierNames = { legend: 'أسطوري', epic: 'خارق', rare: 'نادر', common: 'عادي' };
@@ -159,22 +168,35 @@ function startCountdown(seconds) {
     
     if (timeLeft <= 0) {
       clearInterval(timerInterval);
-      // انتهاء الوقت لجولة المزاد الحالية
     }
   }, 1000);
 }
 
-function renderCard(cardData) {
-  const t = getTier(cardData.r);
-  return `
-    <div class="card ${t}">
-      <div class="in">
-        <div class="name">${cardData.n}</div>
-        <div class="rating">⚡ ${cardData.r}</div>
-        <div class="tier">${tierNames[t]}</div>
+// رسم البطاقة (مخفية أثناء المزاد أو مكشوفة عند النتيجة)
+function renderCard(cardData, reveal = false) {
+  if (!reveal) {
+    return `
+      <div class="card mystery">
+        <div class="in">
+          <div class="name">${cardData.n}</div>
+          <div class="rating">⚡ ؟</div>
+          <div class="tier">مخفي حتى نهاية المزاد</div>
+        </div>
       </div>
-    </div>
-  `;
+    `;
+  } else {
+    const t = getTier(cardData.r);
+    const pts = getPoints(cardData.r);
+    return `
+      <div class="card ${t}">
+        <div class="in">
+          <div class="name">${cardData.n}</div>
+          <div class="rating">⚡ ${cardData.r}</div>
+          <div class="tier">${tierNames[t]} (${pts} نقطة)</div>
+        </div>
+      </div>
+    `;
+  }
 }
 
 function showHome() {
@@ -250,16 +272,18 @@ function startGame() {
   socket.emit('start-game', currentRoom);
 }
 
-// استقبال أحداث اللعبة والمزاد
 socket.on('game-started', (data) => {
   renderAuctionScreen(data);
-  startCountdown(20); // عداد 20 ثانية لكل لاعب
+  startCountdown(20);
 });
 
 socket.on('update-auction', (data) => {
   const bidEl = $('#currentBid');
   if (bidEl) bidEl.textContent = data.bid;
   
+  // حفظ ومعرفة هل المستخدم الحالي هو من قام بآخر مزايدة لتعطيل الزر مؤقتاً
+  window.currentLeadIndex = data.lead;
+
   document.querySelectorAll('.pl').forEach((el, idx) => {
     if (idx === data.lead) {
       el.classList.add('lead');
@@ -269,12 +293,63 @@ socket.on('update-auction', (data) => {
   });
 });
 
+// عند انتهاء وقت الجولة وكشف هوية اللاعب الحقيقية وتوزيع نقاطه
+socket.on('round-result', (data) => {
+  if (timerInterval) clearInterval(timerInterval);
+  app.innerHTML = `
+    <h1>🏁 نتيجة الجولة</h1>
+    <div class="panel">
+      <div class="notification">${data.message}</div>
+      ${renderCard(data.card, true)}
+      <p style="color:var(--mu); margin-top:15px;">جالانتقال للاعب التالي قريباً...</p>
+    </div>
+  `;
+});
+
+// نهاية المزاد بالكامل وجمع النقاط وتحديد الفائز
+socket.on('auction-ended', (players) => {
+  if (timerInterval) clearInterval(timerInterval);
+
+  // حساب النقاط الإجمالية لكل لاعب
+  const results = players.map(p => {
+    const totalPoints = p.team.reduce((sum, player) => sum + getPoints(player.r), 0);
+    return { ...p, totalPoints };
+  });
+
+  results.sort((a, b) => b.totalPoints - a.totalPoints);
+
+  app.innerHTML = `
+    <h1>🏆 النتائج النهائية للمزاد</h1>
+    <div class="panel">
+      <h2 style="color:#4ade80;">الفائز: ${results[0].name} بـ ${results[0].totalPoints} نقطة!</h2>
+      <div class="grid" style="margin-top:20px;">
+        ${results.map((p, idx) => `
+          <div class="pl" style="text-align:right; padding:15px;">
+            <h3 style="color:#60a5fa; margin-top:0;">#${idx+1} ${p.name}</h3>
+            <p>💰 الميزانية المتبقية: <b>${p.budget} ريال</b></p>
+            <p>⭐ مجموع النقاط: <b>${p.totalPoints} نقطة</b></p>
+            <hr style="border-color:#333b50;">
+            <p style="font-weight:bold; margin-bottom:5px;">التشكيلة:</p>
+            <ul style="padding-right:20px; margin:0; font-size:0.9em; color:var(--mu);">
+              ${p.team.length === 0 ? '<li>لا يوجد لاعبين</li>' : p.team.map(tp => `<li>${tp.n} (التقييم: ${tp.r} - ${tp.price} ريال)</li>`).join('')}
+            </ul>
+          </div>
+        `).join('')}
+      </div>
+      <button style="margin-top:20px;" onclick="location.reload()">العودة للرئيسية</button>
+    </div>
+  `;
+});
+
 function renderAuctionScreen(data) {
+  // معرفة ترتيب اللاعب الحالي في المصفوفة
+  const myIndex = data.players.findIndex(p => p.name === myName);
+
   app.innerHTML = `
     <h1>🏆 المزاد المباشر أونلاين</h1>
     <div class="panel">
       <div id="tm" class="timer">20</div>
-      ${renderCard(data.card)}
+      ${renderCard(data.card, false)}
       <div style="font-size:1.4rem; margin:10px 0;">
         السعر الحالي: <b id="currentBid">${data.bid}</b> ريال
       </div>
@@ -283,7 +358,8 @@ function renderAuctionScreen(data) {
           <div class="pl ${data.lead === i ? 'lead' : ''}">
             <b>${p.name}</b>
             <div style="margin:4px 0">💰 الميزانية: ${p.budget} ريال</div>
-            <button onclick="sendBid(${i})">+1 ريال</button>
+            <div style="color:var(--mu); font-size:0.9em; margin-bottom:8px">الفريق: ${p.team.length} لاعبين</div>
+            <button onclick="sendBid(${i})" ${data.lead === i ? 'disabled title="أنت صاحب أعلى مزايدة حالياً"' : ''}>+1 ريال</button>
           </div>
         `).join('')}
       </div>
