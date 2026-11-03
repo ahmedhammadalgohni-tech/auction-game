@@ -274,15 +274,14 @@ socket.on('room-created', (roomCode) => {
   showLobby([ { name: myName } ], true);
 });
 socket.on('update-lobby', (data) => {
-  // إذا أرسل السيرفر كائناً يحتوي على players و hostId
-  const playersList = data.players || data; // توافقية مع الحالتين
+  const playersList = data.players || data;
   const hostSocketId = data.hostId;
   
-  // هل أنت المضيف؟ (إذا تطابق الـ id الخاص بك مع الـ hostId، أو كنت أول لاعب بالقائمة)
   const isMeHost = hostSocketId ? (hostSocketId === socket.id) : (playersList[0].id === socket.id);
   
   showLobby(playersList, isMeHost);
 });
+ 
 
 socket.on('error-msg', (msg) => {
   $('#err').textContent = msg;
