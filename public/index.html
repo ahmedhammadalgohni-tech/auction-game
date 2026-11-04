@@ -71,11 +71,22 @@ let finalData = null;
 const getTier = r => r >= 96 ? 'legend' : r >= 91 ? 'epic' : r >= 86 ? 'rare' : 'common';
 const tierNames = { legend: 'أسطوري', epic: 'خارق', rare: 'نادر', common: 'عادي' };
 function getPoints(r) {
-  if (r < 80) return Math.max(1, r - 69);
-  if (r <= 85) return 16 + (r - 80);
-  if (r <= 90) return 22 + (r - 86);
-  if (r <= 95) return 28 + (r - 91);
-  return 34 + (r - 96);
+  if (r < 80) {
+    // الصنف الأول: يبدأ من 1 نقطة (التقييم 70 = 1، وكل زيادة تزيد 1)
+    return Math.max(1, r - 69);
+  } else if (r <= 85) {
+    // الصنف الثاني: يبدأ من 15 نقطة عند تقييم 80
+    return 15 + (r - 80);
+  } else if (r <= 90) {
+    // الصنف الثالث: يبدأ من 26 نقطة عند تقييم 86
+    return 26 + (r - 86);
+  } else if (r <= 95) {
+    // الصنف الرابع: يبدأ من 32 نقطة عند تقييم 91
+    return 32 + (r - 91);
+  } else {
+    // الصنف الخامس: يبدأ من 42 نقطة عند تقييم 96
+    return 42 + (r - 96);
+  }
 }
 const initials = n => Array.from(n.split(' ').map(w => w[0] || '').join('')).slice(0, 3).join('');
 
