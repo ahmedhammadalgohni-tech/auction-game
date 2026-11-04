@@ -6,118 +6,48 @@
 <title>مزاد اللاعبين - أونلاين</title>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-:root {
-  color-scheme: dark;
-  box-sizing: border-box;
-  --bg: #0b0e14;
-  --pn: #161b26;
-  --tx: #eef1f7;
-  --mu: #8b93a7;
-  --ac: #2563eb; 
-}
-* { box-sizing: border-box; }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--tx);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  min-height: 100vh;
-}
-#app {
-  max-width: 1020px;
-  margin: auto;
-  padding: 16px;
-  text-align: center;
-}
-h1 { margin: 12px 0; font-weight: 900; }
-button {
-  font: inherit;
-  cursor: pointer;
-  border: 0;
-  border-radius: 10px;
-  padding: 10px 18px;
-  background: var(--ac);
-  color: #fff;
-  font-weight: 700;
-  transition: all 0.2s ease;
-}
-button:disabled { background: #232a3b; color: #555; cursor: not-allowed; }
-input {
-  font: inherit;
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid #333b50;
-  background: #0e1118;
-  color: var(--tx);
-  width: 220px;
-  text-align: center;
-  margin: 6px;
-}
-.panel {
-  background: var(--pn);
-  border-radius: 16px;
-  padding: 20px;
-  margin: 14px 0;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-}
-.row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; }
-.timer { font-size: 2.8rem; font-weight: 900; color: #60a5fa; }
-.timer.low { color: #ef4444; }
+:root{color-scheme:dark;--bg:#0b0e14;--pn:#161b26;--tx:#eef1f7;--mu:#8b93a7;--ac:#2563eb}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Tahoma,Roboto,sans-serif;min-height:100vh}
+#app{max-width:1020px;margin:auto;padding:16px;text-align:center}
+h1{margin:12px 0;font-weight:900}
+button{font:inherit;cursor:pointer;border:0;border-radius:10px;padding:10px 18px;background:var(--ac);color:#fff;font-weight:700;transition:all .2s ease}
+button:disabled{background:#232a3b;color:#666;cursor:not-allowed}
+input{font:inherit;padding:10px;border-radius:8px;border:1px solid #333b50;background:#0e1118;color:var(--tx);width:220px;text-align:center;margin:6px}
+.panel{background:var(--pn);border-radius:16px;padding:20px;margin:14px 0;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center}
+.timer{font-size:2.8rem;font-weight:900;color:#60a5fa}
+.timer.low{color:#ef4444}
+.error{color:#ef4444;margin-top:10px;font-weight:bold}
+.notification{color:#fbbf24;font-weight:bold;margin:10px 0;font-size:1.2rem}
 
-.card {
-  --f: 16px;
-  font-size: var(--f);
-  width: 14em;
-  aspect-ratio: 4/3;
-  border-radius: 1em;
-  padding: 0.8em;
-  position: relative;
-  display: inline-block;
-  margin: 10px auto;
-  vertical-align: top;
-  box-shadow: 0 8px 16px rgba(0,0,0,0.5);
-}
-.card .in {
-  background: #1e293b;
-  color: #fff;
-  border-radius: 0.6em;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5em;
-  padding: 10px;
-}
-.card .name {
-  font-size: 1.4em;
-  font-weight: 900;
-  color: #38bdf8;
-}
-.card .rating {
-  font-size: 1.8em;
-  font-weight: 900;
-  color: #4ade80;
-}
-.card .tier {
-  font-size: 0.85em;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 6px;
-  background: rgba(255,255,255,0.1);
-}
+/* ===== البطاقات (الإطار الحقيقي) ===== */
+.card{--f:16px;font-size:var(--f);width:12.5em;aspect-ratio:2/3;border-radius:.9em;padding:.6em;position:relative;display:inline-block;margin:6px;vertical-align:top}
+.card .in{background:#fff;color:#111;border-radius:.4em;height:100%;padding-top:2.6em;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4em}
+.card .rb{position:absolute;top:.2em;left:50%;transform:translateX(-50%);width:104%;height:2.6em;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.8em;color:#fff;clip-path:polygon(0 25%,18% 25%,26% 0,74% 0,82% 25%,100% 25%,88% 50%,80% 100%,20% 100%,12% 50%);background:linear-gradient(#4d86e8,#17369a);padding:0 14%;white-space:nowrap}
+.av{width:5em;height:5em;border-radius:50%;background:#e3e7ee;display:flex;align-items:center;justify-content:center;font-size:1.5em;font-weight:800;color:#2b3a5c}
+.pts{font-size:1.8em;font-weight:900}
+.tag{font-size:.75em;color:#555}
+.mystery{background:#2b2e33;box-shadow:inset 0 0 0 2px #444}
+.mystery .in{background:#3a3d43;color:#777}.mystery .rb{background:linear-gradient(#5a5e66,#3a3d43)}.mystery .av{background:#2b2e33;color:#666}.mystery .pts{color:#777;font-size:3em}
+.rare{background:linear-gradient(135deg,#1c3fa8,#59b8ff 50%,#1c3fa8),repeating-linear-gradient(60deg,#fff3 0 1px,#0000 1px 14px);background-blend-mode:screen}
+.common{background:linear-gradient(135deg,#d6dae0,#aeb4bd)}.common .rb{background:linear-gradient(#8f96a3,#5d6470)}
+.epic{background:linear-gradient(135deg,#ff2d87,#ff8a2b,#ff2d87);box-shadow:0 0 18px #ff2d87aa}.epic .rb{background:linear-gradient(#ff5aa0,#b4155b)}
+.legend{background:linear-gradient(135deg,#a97b10,#ffe27a 50%,#a97b10);box-shadow:0 0 24px #ffd24acc}.legend .rb{background:linear-gradient(#e6b936,#8a6200)}
+.flip{animation:fl .6s}
+@keyframes fl{from{transform:rotateY(90deg) scale(.9)}to{transform:none}}
+.mini{font-size:.5em;margin:2px}.mini .rb{font-size:.9em}
+.empty-slot{display:inline-block;width:100px;aspect-ratio:2/3;margin:3px;border-radius:8px;border:2px dashed #333b50;vertical-align:top}
 
-.mystery { background: linear-gradient(135deg, #334155, #1e293b); box-shadow: 0 0 15px rgba(100,100,100,0.3); }
-.common { background: linear-gradient(135deg, #475569, #334155); }
-.rare { background: linear-gradient(135deg, #1d4ed8, #2563eb); box-shadow: 0 0 15px rgba(37,99,235,0.4); }
-.epic { background: linear-gradient(135deg, #be185d, #db2777); box-shadow: 0 0 18px rgba(219,39,119,0.5); }
-.legend { background: linear-gradient(135deg, #b45309, #d97706); box-shadow: 0 0 22px rgba(217,119,6,0.6); }
-
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-top: 14px; }
-.pl { background: var(--pn); border-radius: 14px; padding: 12px; border: 2px solid transparent; }
-.pl.lead { border-color: #22c55e; background: #14291f; }
-.error { color: #ef4444; margin-top: 10px; font-weight: bold; }
-.notification { color: #fbbf24; font-weight: bold; margin: 10px 0; font-size: 1.2rem; }
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:14px}
+.pl{background:var(--pn);border-radius:14px;padding:12px;border:2px solid transparent}
+.pl.me{border-color:#2563eb}
+.pl.lead{border-color:#22c55e;background:#14291f}
+.pl.off{opacity:.5}
+.win{font-size:1.6rem;font-weight:800;color:#ffd24a;margin:16px}
+.cols{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.col{background:var(--pn);border-radius:12px;padding:8px;min-width:150px;max-width:300px}
+.col.w{outline:3px solid #ffd24a}
 </style>
 </head>
 <body>
@@ -127,256 +57,227 @@ input {
 const socket = io();
 const $ = s => document.querySelector(s);
 const app = $('#app');
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 let myName = '';
 let currentRoom = '';
+let hostId = '';
+let S = null;              // حالة الجولة الحالية
+let endsAtLocal = 0;       // وقت انتهاء الجولة بحسب ساعة هذا الجهاز
 let timerInterval = null;
-let latestAuctionData = null; // لحفظ حالة المزاد الحالية
+let finalData = null;
 
-// 1. تحديد الندرة من 70 إلى 85 للـ common
-function getTier(r) {
-  if (r >= 96) return 'legend';
-  if (r >= 91) return 'epic';
-  if (r >= 86) return 'rare';
-  return 'common'; // من 70 إلى 85
-}
-
-// 2. منطق النقاط المعدل (بدءاً من 70 والزيادة بـ 5 عند الوصول إلى 80)
-function getPoints(r) {
-  if (r < 80) {
-    // التقييمات أقل من 80 (تبدأ من 70 وتأخذ نقطة لكل زيادة)
-    return Math.max(1, r - 69);
-  } else if (r <= 85) {
-    // من 80 إلى 85: عند الوصول لـ 80 يكتسب 5 نقاط إضافية فوق نقاط 79
-    // (79 = 10 نقاط + 5 عند الـ 80 + زيادة كل تقييم)
-    return 11 + 5 + (r - 80);
-  } else if (r <= 90) {
-    return 22 + (r - 86);
-  } else if (r <= 95) {
-    return 28 + (r - 91);
-  } else {
-    return 34 + (r - 96);
-  }
-}
-
+/* ---------- التقييم والنقاط ---------- */
+const getTier = r => r >= 96 ? 'legend' : r >= 91 ? 'epic' : r >= 86 ? 'rare' : 'common';
 const tierNames = { legend: 'أسطوري', epic: 'خارق', rare: 'نادر', common: 'عادي' };
+function getPoints(r) {
+  if (r < 80) return Math.max(1, r - 69);
+  if (r <= 85) return 16 + (r - 80);
+  if (r <= 90) return 22 + (r - 86);
+  if (r <= 95) return 28 + (r - 91);
+  return 34 + (r - 96);
+}
+const initials = n => Array.from(n.split(' ').map(w => w[0] || '').join('')).slice(0, 3).join('');
 
-function startCountdown(seconds) {
-  let timeLeft = seconds;
-  if (timerInterval) clearInterval(timerInterval);
-  
-  const tmElement = document.getElementById('tm');
-  if (!tmElement) return;
-
-  timerInterval = setInterval(() => {
-    timeLeft--;
-    tmElement.textContent = timeLeft;
-    
-    if (timeLeft <= 5) {
-      tmElement.classList.add('low');
-    } else {
-      tmElement.classList.remove('low');
-    }
-    
-    if (timeLeft <= 0) {
-      clearInterval(timerInterval);
-    }
-  }, 1000);
+function card(c, rev, cls = '') {
+  const t = rev ? getTier(c.r) : 'mystery';
+  return `<div class="card ${t} ${cls}"><div class="rb">${esc(c.n)}</div><div class="in"><div class="av">${esc(initials(c.n))}</div><div class="pts">${rev ? getPoints(c.r) : '؟'}</div><div class="tag">${rev ? tierNames[t] : '؟ ؟ ؟'}</div></div></div>`;
 }
 
-function renderCard(cardData, reveal = false) {
-  if (!reveal) {
-    return `
-      <div class="card mystery">
-        <div class="in">
-          <div class="name">${cardData.n}</div>
-          <div class="rating">⚡ ؟</div>
-          <div class="tier">مخفي حتى نهاية المزاد</div>
-        </div>
-      </div>
-    `;
-  } else {
-    const t = getTier(cardData.r);
-    const pts = getPoints(cardData.r);
-    return `
-      <div class="card ${t}">
-        <div class="in">
-          <div class="name">${cardData.n}</div>
-          <div class="rating">⚡ ${cardData.r}</div>
-          <div class="tier">${tierNames[t]} (${pts} نقطة)</div>
-        </div>
-      </div>
-    `;
-  }
+/* ---------- المؤقت (يعتمد على وقت انتهاء قادم من السيرفر) ---------- */
+const secondsLeft = () => Math.max(0, Math.ceil((endsAtLocal - Date.now()) / 1000));
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(tick, 250);
+  tick();
+}
+function tick() {
+  const el = $('#tm');
+  if (!el) return;
+  const l = secondsLeft();
+  el.textContent = l;
+  el.className = 'timer' + (l <= 10 ? ' low' : '');
+  if (l <= 0) clearInterval(timerInterval);
 }
 
+/* ---------- الصفحة الرئيسية ---------- */
 function showHome() {
   app.innerHTML = `
     <h1>🏆 مزاد اللاعبين أونلاين</h1>
     <div class="panel">
       <p>أدخل اسمك أولاً:</p>
-      <input type="text" id="pName" placeholder="اسمك المستعار" value="${myName}"><br>
-      <div style="margin-top: 15px;" class="row">
-        <button onclick="createRoom()">إنشاء غرفة جديدة</button>
-      </div>
-      <hr style="border-color:#333b50; margin:20px 0;">
+      <input type="text" id="pName" maxlength="16" placeholder="اسمك المستعار" value="${esc(myName)}"><br>
+      <div style="margin-top:15px" class="row"><button onclick="createRoom()">إنشاء غرفة جديدة</button></div>
+      <hr style="border-color:#333b50;margin:20px 0">
       <p>أو انضم لغرفة صديق:</p>
       <input type="text" id="rCode" placeholder="رمز الغرفة (مثل AB123)"><br>
-      <div style="margin-top: 10px;">
-        <button style="background:#16a34a" onclick="joinRoom(event)">انضمام للغرفة</button>
-      </div>
+      <div style="margin-top:10px"><button style="background:#16a34a" onclick="joinRoom(event)">انضمام للغرفة</button></div>
       <div id="err" class="error"></div>
-    </div>
-  `;
+    </div>`;
 }
-
 function createRoom() {
   myName = $('#pName').value.trim();
   if (!myName) return $('#err').textContent = 'الرجاء إدخال اسمك أولاً!';
   socket.emit('create-room', myName);
 }
-
-function joinRoom(event) {
-  if (event) event.preventDefault();
+function joinRoom(e) {
+  if (e) e.preventDefault();
   myName = $('#pName').value.trim();
-  const roomCode = $('#rCode').value.trim().toUpperCase();
-  
+  const code = $('#rCode').value.trim().toUpperCase();
   if (!myName) return $('#err').textContent = 'الرجاء إدخال اسمك أولاً!';
-  if (!roomCode) return $('#err').textContent = 'الرجاء إدخال رمز الغرفة!';
-  
+  if (!code) return $('#err').textContent = 'الرجاء إدخال رمز الغرفة!';
   $('#err').textContent = '';
-  currentRoom = roomCode;
-  socket.emit('join-room', { roomCode, playerName: myName });
+  socket.emit('join-room', { roomCode: code, playerName: myName });
 }
 
-socket.on('room-created', (roomCode) => {
-  currentRoom = roomCode;
-  showLobby([{ name: myName }], true);
+socket.on('room-created', code => { currentRoom = code; });
+socket.on('joined', code => { currentRoom = code; });
+socket.on('error-msg', msg => {
+  const e = $('#err');
+  if (e) e.textContent = msg; else alert(msg);
 });
 
-socket.on('update-lobby', (data) => {
-  const playersList = data.players || data;
-  const hostSocketId = data.hostId;
-  const isMeHost = hostSocketId ? (hostSocketId === socket.id) : (playersList[0].name === myName);
-  showLobby(playersList, isMeHost);
+/* ---------- غرفة الانتظار ---------- */
+socket.on('update-lobby', data => {
+  hostId = data.hostId;
+  showLobby(data.players, hostId === socket.id);
 });
-
-socket.on('error-msg', (msg) => {
-  $('#err').textContent = msg;
-});
-
 function showLobby(players, isHost) {
   app.innerHTML = `
     <h1>🏆 غرفة الانتظار</h1>
     <div class="panel">
-      <h3>رمز الغرفة: <span style="color:#60a5fa; font-size:1.8rem;">${currentRoom}</span></h3>
+      <h3>رمز الغرفة: <span style="color:#60a5fa;font-size:1.8rem">${esc(currentRoom)}</span></h3>
       <p style="color:var(--mu)">شارك هذا الرمز مع أصدقائك (الحد الأقصى 4 لاعبين)</p>
-      <div class="grid" style="margin: 20px 0;">
-        ${players.map(p => `<div class="pl"><b>👤 ${p.name}</b></div>`).join('')}
+      <div class="grid" style="margin:20px 0">
+        ${players.map(p => `<div class="pl ${p.id === socket.id ? 'me' : ''}"><b>👤 ${esc(p.name)}</b>${p.id === hostId ? ' 👑' : ''}${p.id === socket.id ? ' (أنت)' : ''}</div>`).join('')}
       </div>
-      ${isHost ? `<button style="background:#16a34a; font-size:1.2rem;" onclick="startGame()">بدء اللعبة الآن</button>` : `<p style="color:#60a5fa">بانتظار أن يبدأ المضيف اللعبة...</p>`}
-    </div>
-  `;
+      <div id="err" class="error"></div>
+      ${isHost
+        ? `<button style="background:#16a34a;font-size:1.2rem" onclick="startGame()">بدء اللعبة الآن</button>`
+        : `<p style="color:#60a5fa">بانتظار أن يبدأ المضيف اللعبة...</p>`}
+    </div>`;
 }
+function startGame() { socket.emit('start-game', currentRoom); }
 
-function startGame() {
-  socket.emit('start-game', currentRoom);
-}
-
-socket.on('game-started', (data) => {
-  latestAuctionData = data;
-  renderAuctionScreen(latestAuctionData);
-  startCountdown(20);
+/* ---------- المزاد ---------- */
+socket.on('round-started', data => {
+  S = data;
+  endsAtLocal = Date.now() + data.remaining;
+  renderAuction();
+  startTimer();
+});
+socket.on('update-auction', data => {
+  if (!S) return;
+  S.bid = data.bid;
+  S.lead = data.lead;
+  endsAtLocal = Date.now() + data.remaining;   // التمديد يصل من السيرفر
+  renderAuction();
+  startTimer();
 });
 
-socket.on('update-auction', (data) => {
-  if (latestAuctionData) {
-    latestAuctionData.bid = data.bid;
-    latestAuctionData.lead = data.lead;
-  }
-  const bidEl = $('#currentBid');
-  if (bidEl) bidEl.textContent = data.bid;
-  
-  // تحديث حالة الأزرار لمنع المزايدة المتكررة لنفس الشخص
-  renderAuctionScreen(latestAuctionData);
-});
+function renderAuction() {
+  if (!S) return;
+  const myIdx = S.players.findIndex(p => p.id === socket.id);
+  const me = S.players[myIdx];
+  const leadName = S.lead >= 0 && S.players[S.lead] ? S.players[S.lead].name : '';
 
-socket.on('round-result', (data) => {
-  if (timerInterval) clearInterval(timerInterval);
+  app.innerHTML = `
+    <h1>🏆 المزاد المباشر • الجولة ${S.round}</h1>
+    <div class="panel">
+      <div id="tm" class="timer">${secondsLeft()}</div>
+      ${card(S.card, false)}
+      <div style="font-size:1.4rem;margin:10px 0">السعر الحالي: <b>${S.bid}</b> ريال ${leadName ? '— ' + esc(leadName) : ''}</div>
+      <div class="grid">
+        ${S.players.map((p, i) => {
+          const isMe = p.id === socket.id;
+          const isLead = S.lead === i;
+          let action = '';
+          if (isMe) {
+            const full = p.teamCount >= S.teamSize;
+            const can = !full && !isLead && p.budget >= S.bid + 1;
+            action = `<button ${can ? '' : 'disabled'} onclick="sendBid()">${isLead ? 'أنت المتصدر ✔' : full ? 'فريقك مكتمل' : '+1 ريال'}</button>`;
+            if (S.grabs.includes(p.id)) action += `<br><button style="background:#16a34a;margin-top:6px" onclick="grab()">⚡ خذه مجاناً</button>`;
+          } else {
+            action = `<div style="color:var(--mu);font-size:.9em">${isLead ? '🟢 يتصدر المزاد' : p.connected ? '' : '🔌 غير متصل'}</div>`;
+          }
+          return `<div class="pl ${isMe ? 'me' : ''} ${isLead ? 'lead' : ''} ${p.connected ? '' : 'off'}">
+            <b>${esc(p.name)}</b>${isMe ? ' (أنت)' : ''}
+            <div style="margin:4px 0">💰 ${p.budget} ريال</div>
+            <div style="color:var(--mu);font-size:.9em;margin-bottom:8px">الفريق ${p.teamCount}/${S.teamSize}</div>
+            ${action}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+function sendBid() { socket.emit('place-bid', { roomCode: currentRoom }); }
+function grab() { socket.emit('grab', currentRoom); }
+
+socket.on('round-result', data => {
+  clearInterval(timerInterval);
   app.innerHTML = `
     <h1>🏁 نتيجة الجولة</h1>
     <div class="panel">
-      <div class="notification">${data.message}</div>
-      ${renderCard(data.card, true)}
-      <p style="color:var(--mu); margin-top:15px;">الانتقال للاعب التالي قريباً...</p>
-    </div>
-  `;
-});
-
-socket.on('auction-ended', (players) => {
-  if (timerInterval) clearInterval(timerInterval);
-
-  const results = players.map(p => {
-    const totalPoints = p.team.reduce((sum, player) => sum + getPoints(player.r), 0);
-    return { ...p, totalPoints };
-  });
-
-  results.sort((a, b) => b.totalPoints - a.totalPoints);
-
-  app.innerHTML = `
-    <h1>🏆 النتائج النهائية للمزاد</h1>
-    <div class="panel">
-      <h2 style="color:#4ade80;">الفائز: ${results[0].name} بـ ${results[0].totalPoints} نقطة!</h2>
-      <div class="grid" style="margin-top:20px;">
-        ${results.map((p, idx) => `
-          <div class="pl" style="text-align:right; padding:15px;">
-            <h3 style="color:#60a5fa; margin-top:0;">#${idx+1} ${p.name}</h3>
-            <p>💰 الميزانية المتبقية: <b>${p.budget} ريال</b></p>
-            <p>⭐ مجموع النقاط: <b>${p.totalPoints} نقطة</b></p>
-            <hr style="border-color:#333b50;">
-            <p style="font-weight:bold; margin-bottom:5px;">التشكيلة:</p>
-            <ul style="padding-right:20px; margin:0; font-size:0.9em; color:var(--mu);">
-              ${p.team.length === 0 ? '<li>لا يوجد لاعبين</li>' : p.team.map(tp => `<li>${tp.n} (التقييم: ${tp.r} - ${tp.price} ريال)</li>`).join('')}
-            </ul>
-          </div>
-        `).join('')}
-      </div>
-      <button style="margin-top:20px;" onclick="location.reload()">العودة للرئيسية</button>
-    </div>
-  `;
-});
-
-function renderAuctionScreen(data) {
-  if (!data) return;
-  const myIndex = data.players.findIndex(p => p.name === myName);
-
-  app.innerHTML = `
-    <h1>🏆 المزاد المباشر أونلاين</h1>
-    <div class="panel">
-      <div id="tm" class="timer">20</div>
-      ${renderCard(data.card, false)}
-      <div style="font-size:1.4rem; margin:10px 0;">
-        السعر الحالي: <b id="currentBid">${data.bid}</b> ريال
-      </div>
+      <div class="notification">${esc(data.message)}</div>
+      ${card(data.card, false)}
       <div class="grid">
-        ${data.players.map((p, i) => {
-          const isLead = data.lead === i;
-          return `
-            <div class="pl ${isLead ? 'lead' : ''}">
-              <b>${p.name}</b>
-              <div style="margin:4px 0">💰 الميزانية: ${p.budget} ريال</div>
-              <div style="color:var(--mu); font-size:0.9em; margin-bottom:8px">الفريق: ${p.team.length} لاعبين</div>
-              <button onclick="sendBid(${i})" ${isLead ? 'disabled title="أنت صاحب أعلى مزايدة"' : ''}>+1 ريال</button>
-            </div>
-          `;
-        }).join('')}
+        ${data.players.map(p => `<div class="pl ${p.id === socket.id ? 'me' : ''}"><b>${esc(p.name)}</b>
+          <div>💰 ${p.budget} ريال</div><div style="color:var(--mu)">الفريق ${p.teamCount}/5</div></div>`).join('')}
       </div>
-    </div>
-  `;
-}
+      <p style="color:var(--mu);margin-top:15px">اللاعب التالي قريباً...</p>
+    </div>`;
+});
 
-function sendBid(playerIndex) {
-  socket.emit('place-bid', { roomCode: currentRoom, playerIndex });
-}
+/* ---------- الكشف النهائي ---------- */
+socket.on('auction-ended', data => {
+  clearInterval(timerInterval);
+  finalData = data;
+  hostId = data.hostId;
+  const isHost = hostId === socket.id;
+  app.innerHTML = `
+    <h1>🎬 الكشف النهائي</h1>
+    <div class="cols">
+      ${data.players.map((p, i) => `
+        <div class="col" id="c${i}"><b>${esc(p.name)}</b>${p.id === socket.id ? ' (أنت)' : ''}
+          <div id="t${i}">${Array.from({ length: 5 }, (_, k) => p.team[k] ? card(p.team[k], false, 'mini') : '<div class="empty-slot"></div>').join('')}</div>
+          <div id="s${i}" style="font-weight:800;font-size:1.2rem">؟</div>
+        </div>`).join('')}
+    </div>
+    <div id="wn"></div>
+    <div class="row" style="margin-top:12px">
+      ${isHost
+        ? `<button id="rb" onclick="socket.emit('start-reveal', currentRoom)">🎴 اكشف البطاقات</button>`
+        : `<span id="rb" style="color:#60a5fa">بانتظار المضيف ليكشف البطاقات...</span>`}
+      <button style="background:#333b50" onclick="location.reload()">العودة للرئيسية</button>
+    </div>`;
+});
+
+socket.on('run-reveal', () => {
+  if (!finalData) return;
+  const rb = $('#rb');
+  if (rb) { rb.disabled = true; rb.style.display = 'none'; }
+  const players = finalData.players;
+  const sum = players.map(() => 0);
+  let k = 0;
+  const iv = setInterval(() => {
+    players.forEach((p, i) => {
+      const c = p.team[k];
+      if (!c) return;
+      sum[i] += getPoints(c.r);
+      const t = $('#t' + i);
+      t.children[k].outerHTML = card(c, true, 'mini flip');
+      $('#s' + i).textContent = 'المجموع: ' + sum[i];
+    });
+    k++;
+    if (k >= 5) {
+      clearInterval(iv);
+      const m = Math.max(...sum);
+      const ws = players.filter((p, i) => sum[i] === m);
+      players.forEach((p, i) => { if (sum[i] === m) $('#c' + i).classList.add('w'); });
+      $('#wn').innerHTML = `<div class="win">🏆 ${ws.length > 1 ? 'تعادل: ' : 'الفائز: '}${ws.map(w => esc(w.name)).join(' و ')} — ${m} نقطة</div>`;
+    }
+  }, 1100);
+});
 
 showHome();
 </script>
