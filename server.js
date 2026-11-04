@@ -6,7 +6,13 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-app.use(express.static('public'));
+const fs = require('fs');
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
+app.get('/', (req, res) => {
+    const inPublic = path.join(__dirname, 'public', 'index.html');
+    res.sendFile(fs.existsSync(inPublic) ? inPublic : path.join(__dirname, 'index.html'));
+});
 
 const rooms = {};
 
@@ -754,139 +760,254 @@ const allPlayersPool = [
 ];
 
 
-function getRandomPlayer() {
-    const randomIndex = Math.floor(Math.random() * allPlayersPool.length);
-    return allPlayersPool[randomIndex];
+// ======================= منطق اللعبة =======================
+const TEAM_SIZE = 5;          // عدد لاعبي كل فريق
+const MAX_PLAYERS = 4;
+const ROUND_MS = 30000;       // مدة كل جولة
+const EXTEND_WINDOW = 10000;  // إذا جاءت مزايدة في آخر 10 ثواني
+const EXTEND_MS = 10000;      // يُضاف 10 ثواني
+const RESULT_MS = 3500;       // مدة عرض نتيجة الجولة
+
+// إزالة التكرار من القائمة (بالاسم)
+const uniquePool = (() => {
+    const m = new Map();
+    for (const p of allPlayersPool) if (!m.has(p.n)) m.set(p.n, p);
+    return [...m.values()];
+})();
+
+function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+const makeCode = () => Math.random().toString(36).substring(2, 7).toUpperCase();
+
+function publicPlayers(room) {
+    return room.players.map(p => ({
+        id: p.id,
+        name: p.name,
+        budget: p.budget,
+        teamCount: p.team.length,
+        connected: p.connected !== false
+    }));
+}
+
+// اللاعبون الذين يحق لهم أخذ البطاقة مجاناً
+function grabbers(room) {
+    const open = room.players.filter(p => p.team.length < TEAM_SIZE);
+    if (open.length === 1) return [open[0].id];
+    return open.filter(p => p.budget < 1).map(p => p.id);
+}
+
+function roundState(room) {
+    return {
+        card: { n: room.currentCard.n },
+        bid: room.currentBid,
+        lead: room.currentLead,
+        remaining: Math.max(0, room.endsAt - Date.now()),
+        players: publicPlayers(room),
+        grabs: grabbers(room),
+        round: room.currentRound,
+        teamSize: TEAM_SIZE
+    };
+}
+
+function scheduleSettle(code) {
+    const room = rooms[code];
+    if (!room) return;
+    if (room.roundTimer) clearTimeout(room.roundTimer);
+    room.roundTimer = setTimeout(() => settle(code, null), Math.max(0, room.endsAt - Date.now()));
+}
+
+function startNextRound(code) {
+    const room = rooms[code];
+    if (!room || room.status !== 'playing') return;
+
+    const open = room.players.filter(p => p.team.length < TEAM_SIZE);
+    if (!open.length || !room.deck.length) return endGame(code);
+
+    room.currentCard = room.deck.shift();
+    room.currentRound++;
+    room.currentBid = 0;
+    room.currentLead = -1;
+    room.endsAt = Date.now() + ROUND_MS;
+    room.phase = 'bidding';
+
+    scheduleSettle(code);
+    io.to(code).emit('round-started', roundState(room));
+}
+
+function settle(code, grabberIndex) {
+    const room = rooms[code];
+    if (!room || room.phase !== 'bidding') return;
+    room.phase = 'result';
+    if (room.roundTimer) clearTimeout(room.roundTimer);
+
+    let message;
+    if (grabberIndex !== null && grabberIndex !== undefined) {
+        const w = room.players[grabberIndex];
+        w.team.push({ ...room.currentCard, price: 0 });
+        message = `${w.name} أخذ اللاعب ${room.currentCard.n} مجاناً!`;
+    } else if (room.currentLead >= 0 && room.currentBid > 0) {
+        const w = room.players[room.currentLead];
+        w.budget -= room.currentBid;
+        w.team.push({ ...room.currentCard, price: room.currentBid });
+        message = `تم بيع اللاعب ${room.currentCard.n} إلى ${w.name} مقابل ${room.currentBid} ريال!`;
+    } else {
+        message = `لم يزاود أحد على اللاعب ${room.currentCard.n}، تم تخطيه!`;
+    }
+
+    io.to(code).emit('round-result', {
+        card: { n: room.currentCard.n },
+        message,
+        players: publicPlayers(room)
+    });
+
+    room.roundTimer = setTimeout(() => startNextRound(code), RESULT_MS);
+}
+
+function endGame(code) {
+    const room = rooms[code];
+    if (!room) return;
+    room.status = 'ended';
+    room.phase = 'ended';
+    if (room.roundTimer) clearTimeout(room.roundTimer);
+    io.to(code).emit('auction-ended', {
+        hostId: room.host,
+        players: room.players.map(p => ({ id: p.id, name: p.name, budget: p.budget, team: p.team }))
+    });
+    // حذف الغرفة بعد 15 دقيقة
+    setTimeout(() => { delete rooms[code]; }, 15 * 60 * 1000);
 }
 
 io.on('connection', (socket) => {
     console.log('مستخدم متصل:', socket.id);
-    const fn = () => Math.random().toString(36).substring(2, 7).toUpperCase();
+
+    const lobbyPayload = (room) => ({
+        players: room.players.map(p => ({ id: p.id, name: p.name })),
+        hostId: room.host
+    });
 
     socket.on('create-room', (playerName) => {
-        const roomCode = fn();
-        rooms[roomCode] = {
+        let code = makeCode();
+        while (rooms[code]) code = makeCode();
+        const name = String(playerName || '').trim().slice(0, 16) || 'لاعب 1';
+        rooms[code] = {
             host: socket.id,
-            players: [{ id: socket.id, name: playerName, team: [], budget: 100 }],
+            players: [{ id: socket.id, name, team: [], budget: 0, connected: true }],
             status: 'waiting',
+            phase: 'waiting',
+            deck: [],
             currentBid: 0,
-            currentLead: null,
+            currentLead: -1,
             currentCard: null,
             roundTimer: null,
-            totalRounds: 5,
+            endsAt: 0,
             currentRound: 0
         };
-        socket.join(roomCode);
-        socket.emit('room-created', roomCode);
+        socket.join(code);
+        socket.emit('room-created', code);
+        io.to(code).emit('update-lobby', lobbyPayload(rooms[code]));
     });
 
     socket.on('join-room', (data) => {
-        const roomCode = (data.roomCode || data).trim().toUpperCase();
-        const playerName = data.playerName || "لاعب";
-        const room = rooms[roomCode];
+        const code = String((data && data.roomCode) || data || '').trim().toUpperCase();
+        const room = rooms[code];
+        if (!room) return socket.emit('error-msg', 'الغرفة غير موجودة!');
+        if (room.status !== 'waiting') return socket.emit('error-msg', 'اللعبة قد بدأت بالفعل!');
+        if (room.players.length >= MAX_PLAYERS) return socket.emit('error-msg', 'الغرفة ممتلئة!');
+        if (room.players.some(p => p.id === socket.id)) return;
 
-        if (!room) {
-            socket.emit('error-msg', 'الغرفة غير موجودة!');
-            return;
-        }
-        if (room.players.length >= 4) {
-            socket.emit('error-msg', 'الغرفة ممتلئة!');
-            return;
-        }
-        if (room.status !== 'waiting') {
-            socket.emit('error-msg', 'اللعبة قد بدأت بالفعل!');
-            return;
-        }
-
-        room.players.push({ id: socket.id, name: playerName, team: [], budget: 100 });
-        socket.join(roomCode);
-
-        io.to(roomCode).emit('update-lobby', {
-            players: room.players,
-            hostId: room.host
-        });
+        const name = String((data && data.playerName) || '').trim().slice(0, 16) || `لاعب ${room.players.length + 1}`;
+        room.players.push({ id: socket.id, name, team: [], budget: 0, connected: true });
+        socket.join(code);
+        socket.emit('joined', code);
+        io.to(code).emit('update-lobby', lobbyPayload(room));
     });
 
-    function startNextRound(roomCode) {
-        const room = rooms[roomCode];
-        if (!room) return;
+    socket.on('start-game', (code) => {
+        const room = rooms[code];
+        if (!room || room.host !== socket.id || room.status !== 'waiting') return;
+        if (room.players.length < 2) return socket.emit('error-msg', 'يجب أن يكون هناك لاعبان على الأقل!');
 
-        room.currentRound++;
-        if (room.currentRound > room.totalRounds) {
-            room.status = 'ended';
-            io.to(roomCode).emit('auction-ended', room.players);
-            return;
-        }
-
-        room.currentCard = getRandomPlayer();
-        room.currentBid = 0;
-        room.currentLead = null;
-
-        io.to(roomCode).emit('game-started', {
-            card: { n: room.currentCard.n },
-            bid: room.currentBid,
-            players: room.players,
-            lead: room.currentLead,
-            round: room.currentRound
-        });
-
-        if (room.roundTimer) clearTimeout(room.roundTimer);
-        room.roundTimer = setTimeout(() => {
-            let message = "";
-            if (room.currentLead !== null && room.currentBid > 0) {
-                const winner = room.players[room.currentLead];
-                winner.budget -= room.currentBid;
-                winner.team.push({ ...room.currentCard, price: room.currentBid });
-                message = `تم بيع اللاعب ${room.currentCard.n} إلى ${winner.name} مقابل ${room.currentBid} ريال!`;
-            } else {
-                message = `لم يزاود أحد على اللاعب ${room.currentCard.n}, تم تخطيه!`;
-            }
-
-            io.to(roomCode).emit('round-result', {
-                card: room.currentCard,
-                message: message,
-                players: room.players
-            });
-
-            setTimeout(() => {
-                startNextRound(roomCode);
-            }, 4000);
-
-        }, 20000);
-    }
-
-    socket.on('start-game', (roomCode) => {
-        const room = rooms[roomCode];
-        if (!room || room.host !== socket.id) return;
-
+        const budget = 20 + Math.floor(Math.random() * 31); // 20 - 50 ريال، نفس الميزانية للجميع
+        room.players.forEach(p => { p.budget = budget; p.team = []; });
+        room.deck = shuffle(uniquePool.map(p => ({ ...p })));
         room.status = 'playing';
         room.currentRound = 0;
-        startNextRound(roomCode);
+        startNextRound(code);
     });
 
-    socket.on('place-bid', ({ roomCode, playerIndex }) => {
+    socket.on('place-bid', ({ roomCode } = {}) => {
         const room = rooms[roomCode];
-        if (!room || room.status !== 'playing') return;
+        if (!room || room.status !== 'playing' || room.phase !== 'bidding') return;
 
-        // التحقق الدقيق لمنع المزايدة مرتين متتاليتين من نفس الشخص
-        if (room.currentLead === playerIndex) return;
-
-        const bidder = room.players[playerIndex];
+        // اللاعب يُحدَّد من اتصاله هو، فلا يستطيع المزايدة باسم غيره
+        const idx = room.players.findIndex(p => p.id === socket.id);
+        if (idx < 0) return;
+        const bidder = room.players[idx];
+        if (room.currentLead === idx) return;
+        if (bidder.team.length >= TEAM_SIZE) return;
         const nextBid = room.currentBid + 1;
+        if (bidder.budget < nextBid) return;
 
-        if (bidder.budget >= nextBid) {
-            room.currentBid = nextBid;
-            room.currentLead = playerIndex;
+        room.currentBid = nextBid;
+        room.currentLead = idx;
 
-            io.to(roomCode).emit('update-auction', {
-                bid: room.currentBid,
-                lead: room.currentLead
-            });
+        // تمديد الوقت إذا كانت المزايدة في آخر 10 ثواني
+        if (room.endsAt - Date.now() <= EXTEND_WINDOW) {
+            room.endsAt += EXTEND_MS;
+            scheduleSettle(roomCode);
         }
+
+        io.to(roomCode).emit('update-auction', {
+            bid: room.currentBid,
+            lead: room.currentLead,
+            remaining: Math.max(0, room.endsAt - Date.now())
+        });
+    });
+
+    socket.on('grab', (roomCode) => {
+        const room = rooms[roomCode];
+        if (!room || room.status !== 'playing' || room.phase !== 'bidding') return;
+        if (!grabbers(room).includes(socket.id)) return;
+        const idx = room.players.findIndex(p => p.id === socket.id);
+        if (idx >= 0) settle(roomCode, idx);
+    });
+
+    socket.on('start-reveal', (roomCode) => {
+        const room = rooms[roomCode];
+        if (!room || room.status !== 'ended' || room.host !== socket.id) return;
+        io.to(roomCode).emit('run-reveal');
     });
 
     socket.on('disconnect', () => {
         console.log('انقطع الاتصال:', socket.id);
+        for (const code of Object.keys(rooms)) {
+            const room = rooms[code];
+            const idx = room.players.findIndex(p => p.id === socket.id);
+            if (idx < 0) continue;
+
+            if (room.status === 'waiting') {
+                room.players.splice(idx, 1);
+                if (!room.players.length) { delete rooms[code]; break; }
+                if (room.host === socket.id) room.host = room.players[0].id;
+                io.to(code).emit('update-lobby', lobbyPayload(room));
+            } else {
+                room.players[idx].connected = false;
+                const alive = room.players.filter(p => p.connected !== false);
+                if (!alive.length) {
+                    if (room.roundTimer) clearTimeout(room.roundTimer);
+                    delete rooms[code];
+                } else if (room.host === socket.id) {
+                    room.host = alive[0].id;
+                }
+            }
+            break;
+        }
     });
 });
 
