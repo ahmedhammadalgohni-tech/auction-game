@@ -798,8 +798,9 @@ function publicPlayers(room) {
 // اللاعبون الذين يحق لهم أخذ البطاقة مجاناً
 function grabbers(room) {
     const open = room.players.filter(p => p.team.length < TEAM_SIZE);
-    if (open.length === 1) return [open[0].id];
-    return open.filter(p => p.budget < 1).map(p => p.id);
+    if (open.length === 0) return [];
+    const allBroke = open.every(p => p.budget < 1);
+    return allBroke ? open.map(p => p.id) : [];
 }
 
 function roundState(room) {
